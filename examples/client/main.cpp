@@ -48,10 +48,30 @@ unordered_map<string, shared_ptr<PeerConnection>> peerConnectionMap;
 unordered_map<string, shared_ptr<DataChannel>> dataChannelMap;
 
 string localId;
+string peerId;
+string messageText;
+int messageSize;
+int messageCount;
+int connectionCount;
+bool sendBinary;
+bool replyPrompt;
+bool echo;
+bool exitOnReply;
+vector<std::byte> binaryMessage;
 
 shared_ptr<PeerConnection> createPeerConnection(const Configuration &config,
                                                 weak_ptr<WebSocket> wws, string id);
 string randomId(size_t length);
+
+void timer_start(std::function<void(void)> func, unsigned int interval) {
+	std::thread([func, interval]() {
+		while (true) {
+			auto x = std::chrono::steady_clock::now() + std::chrono::milliseconds(interval);
+			func();
+			std::this_thread::sleep_until(x);
+		}
+	}).detach();
+}
 
 int main(int argc, char **argv) try {
 	auto params = std::make_unique<Cmdline>(argc, argv);
@@ -64,25 +84,63 @@ int main(int argc, char **argv) try {
 		cout << "No STUN server is configured. Only local hosts and public IP addresses supported."
 		     << endl;
 	} else {
-		if (params->stunServer().substr(0, 5).compare("stun:") != 0) {
+		if (params->stunServers().substr(0, 5).compare("stun:") != 0) {
 			stunServer = "stun:";
 		}
-		stunServer += params->stunServer() + ":" + to_string(params->stunPort());
+		stunServer += params->stunServers() + ":" + to_string(params->stunPort());
 		cout << "Stun server is " << stunServer << endl;
 		config.iceServers.emplace_back(stunServer);
 	}
 
-	localId = randomId(4);
+	if (!params->id().empty())
+		localId = params->id();
+	else
+		localId = randomId(4);
 	cout << "The local ID is: " << localId << endl;
+
+	peerId = params->peerId();
+	messageText = params->message();
+	messageSize = params->messageSize();
+	sendBinary = params->sendBinary();
+	if (messageText.empty()) {
+		if (sendBinary) {
+			cout << "sendBinary" << endl;
+			if (messageSize > 0) {
+				cout << "messageSize" << endl;
+				binaryMessage.resize(messageSize);
+				srand(unsigned int(time(NULL)));
+				for (size_t i = 0; i < messageSize; i++)
+					binaryMessage[i] = byte(rand() % 256);
+			}
+		} else {
+			if (messageSize > 0) {
+				cout << "text messageSize" << endl;
+				messageText = randomId(messageSize);
+			} else
+				messageText = "Hello";
+		}
+	}
+	messageCount = params->messageCount();
+	connectionCount = params->connectionCount();
+	replyPrompt = params->replyPrompt();
+	echo = params->echo();
+	exitOnReply = params->exitOnReply();
 
 	auto ws = make_shared<WebSocket>();
 
 	std::promise<void> wsPromise;
 	auto wsFuture = wsPromise.get_future();
 
-	ws->onOpen([&wsPromise]() {
+	ws->onOpen([&wsPromise, wss = make_weak_ptr(ws)]() {
 		cout << "WebSocket connected, signaling ready" << endl;
 		wsPromise.set_value();
+		timer_start(
+		    [wss]() {
+			    if (auto ws = wss.lock()) {
+				    ws->send("ping");
+			    }
+		    },
+		    10000);
 	});
 
 	ws->onError([&wsPromise](string s) {
@@ -139,43 +197,79 @@ int main(int argc, char **argv) try {
 
 	cout << "Waiting for signaling to be connected..." << endl;
 	wsFuture.get();
-
-	while (true) {
-		string id;
-		cout << "Enter a remote ID to send an offer:" << endl;
-		cin >> id;
-		cin.ignore();
-		if (id.empty())
-			break;
-		if (id == localId)
-			continue;
-
-		cout << "Offering to " + id << endl;
-		auto pc = createPeerConnection(config, ws, id);
-
-		// We are the offerer, so create a data channel to initiate the process
-		const string label = "test";
-		cout << "Creating DataChannel with label \"" << label << "\"" << endl;
-		auto dc = pc->createDataChannel(label);
-
-		dc->onOpen([id, wdc = make_weak_ptr(dc)]() {
-			cout << "DataChannel from " << id << " open" << endl;
-			if (auto dc = wdc.lock())
-				dc->send("Hello from " + localId);
-		});
-
-		dc->onClosed([id]() { cout << "DataChannel from " << id << " closed" << endl; });
-
-		dc->onMessage([id, wdc = make_weak_ptr(dc)](variant<binary, string> data) {
-			if (holds_alternative<string>(data))
-				cout << "Message from " << id << " received: " << get<string>(data) << endl;
-			else
-				cout << "Binary message from " << id
-				     << " received, size=" << get<binary>(data).size() << endl;
-		});
-
-		dataChannelMap.emplace(id, dc);
+	
+	string id;
+	if (!peerId.empty()) {
+		cout << "Remote peer ID: " << peerId << endl;
+		id = peerId;
+	} else {
+		while (true) {
+			cout << "Enter a remote ID to send an offer:" << endl;
+			cin >> id;
+			cin.ignore();
+			if (id.empty())
+				return 0;
+			if (id != localId)
+				break;
+		}
 	}
+
+	cout << "Offering to " + id << endl;
+	auto pc = createPeerConnection(config, ws, id);
+
+	// We are the offerer, so create a data channel to initiate the process
+	const string label = "test";
+	cout << "Creating DataChannel with label \"" << label << "\"" << endl;
+	auto dc = pc->createDataChannel(label);
+
+	dc->onOpen([id, wdc = make_weak_ptr(dc)]() {
+		cout << "DataChannel from " << id << " open" << endl;
+		if (messageCount) {
+			if (auto dc = wdc.lock()) {
+				if (sendBinary)
+					dc->send(binaryMessage.data(), binaryMessage.size());
+				else
+					dc->send(messageText + " from " + localId);
+			}
+			if (messageCount > 0)
+				--messageCount;
+		}
+	});
+
+	dc->onClosed([id]() {
+		cout << "DataChannel from " << id << " closed" << endl;
+	});
+
+	dc->onMessage([id, wdc = make_weak_ptr(dc)](variant<binary, string> data) {
+		if (holds_alternative<string>(data))
+			cout << "Message from " << id << " received: " << get<string>(data) << endl;
+		else
+			cout << "Binary message from " << id
+				    << " received, size=" << get<binary>(data).size() << endl;
+		if (echo) {
+			if (auto dc = wdc.lock()) {
+				if (holds_alternative<string>(data))
+					dc->send(get<string>(data));
+				else
+					dc->send(get<binary>(data).data(), get<binary>(data).size());
+			}
+		} else if (messageCount) {
+			if (auto dc = wdc.lock()) {
+				if (sendBinary)
+					dc->send(binaryMessage.data(), binaryMessage.size());
+				else
+					dc->send(messageText + " from " + localId);
+			}
+			if (messageCount > 0)
+				--messageCount;
+		}
+	});
+
+	dataChannelMap.emplace(id, dc);
+
+	cout << "Press any key to exit... " << endl;
+	//main thread is pausing here awaitng various callbacks
+	cin.ignore();
 
 	cout << "Cleaning up..." << endl;
 
@@ -230,9 +324,24 @@ shared_ptr<PeerConnection> createPeerConnection(const Configuration &config,
 			else
 				cout << "Binary message from " << id
 				     << " received, size=" << get<binary>(data).size() << endl;
+			if (echo) {
+				if (auto dc = wdc.lock()) {
+					if (holds_alternative<string>(data))
+						dc->send(get<string>(data));
+					else
+						dc->send(get<binary>(data).data(), get<binary>(data).size());
+				}
+			} else if (messageCount) {
+				if (auto dc = wdc.lock()) {
+					if (sendBinary)
+						dc->send(binaryMessage.data(), binaryMessage.size());
+					else
+						dc->send(messageText + " from " + localId);
+				}
+				if (messageCount > 0)
+					--messageCount;
+			}
 		});
-
-		dc->send("Hello from " + localId);
 
 		dataChannelMap.emplace(id, dc);
 	});
