@@ -43,6 +43,8 @@ async def handle_websocket(websocket, path):
         while True:
             data = await websocket.recv()
             print('Client {} << {}'.format(client_id, data))
+            if data == 'ping':
+                continue
             message = json.loads(data)
             destination_id = message['id']
             destination_websocket = clients.get(destination_id)
