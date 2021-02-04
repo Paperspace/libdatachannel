@@ -63,16 +63,6 @@ shared_ptr<PeerConnection> createPeerConnection(const Configuration &config,
                                                 weak_ptr<WebSocket> wws, string id);
 string randomId(size_t length);
 
-void timer_start(std::function<void(void)> func, unsigned int interval) {
-	std::thread([func, interval]() {
-		while (true) {
-			auto x = std::chrono::steady_clock::now() + std::chrono::milliseconds(interval);
-			func();
-			std::this_thread::sleep_until(x);
-		}
-	}).detach();
-}
-
 int main(int argc, char **argv) try {
 	auto params = std::make_unique<Cmdline>(argc, argv);
 
@@ -134,13 +124,6 @@ int main(int argc, char **argv) try {
 	ws->onOpen([&wsPromise, wss = make_weak_ptr(ws)]() {
 		cout << "WebSocket connected, signaling ready" << endl;
 		wsPromise.set_value();
-		timer_start(
-		    [wss]() {
-			    if (auto ws = wss.lock()) {
-				    ws->send("ping");
-			    }
-		    },
-		    10000);
 	});
 
 	ws->onError([&wsPromise](string s) {
