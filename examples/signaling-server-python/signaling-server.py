@@ -30,6 +30,8 @@ logger.addHandler(logging.StreamHandler(sys.stdout))
 
 clients = {}
 
+async def process_request(path, request_headers):
+    print('Path {}\nHeaders:\n{}'.format(path, request_headers))
 
 async def handle_websocket(websocket, path):
     client_id = None
@@ -79,6 +81,6 @@ if __name__ == '__main__':
 
     print('Listening on {}'.format(endpoint))
     host, port = endpoint.rsplit(':', 1)
-    start_server = websockets.serve(handle_websocket, host, int(port), ssl=ssl_context)
+    start_server = websockets.serve(handle_websocket, host, int(port), ssl=ssl_context, process_request=process_request)
     asyncio.get_event_loop().run_until_complete(start_server)
     asyncio.get_event_loop().run_forever()
