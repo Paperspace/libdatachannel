@@ -258,7 +258,7 @@ void TlsTransport::Cleanup() {
 	// Nothing to do
 }
 
-void keylog_callback(const SSL *ssl, const char *line);
+void keylog_callback(const SSL *, const char *line);
 
 TlsTransport::TlsTransport(shared_ptr<TcpTransport> lower, string host, state_callback callback)
     : Transport(lower, std::move(callback)), mHost(std::move(host)) {
@@ -269,7 +269,7 @@ TlsTransport::TlsTransport(shared_ptr<TcpTransport> lower, string host, state_ca
 		if (!(mCtx = SSL_CTX_new(SSLv23_method()))) // version-flexible
 			throw std::runtime_error("Failed to create SSL context");
 
-               SSL_CTX_set_keylog_callback(mCtx, keylog_callback);
+                SSL_CTX_set_keylog_callback(mCtx, keylog_callback);
 		openssl::check(SSL_CTX_set_cipher_list(mCtx, "ALL:!LOW:!EXP:!RC4:!MD5:@STRENGTH"),
 		               "Failed to set SSL priorities");
 

@@ -324,19 +324,32 @@ static void init_keylog_file(void) {
 
        const char *filename = getenv("SSLKEYLOGFILE");
        if (filename) {
+#ifdef _WIN32
                keylog_file_fd = _open(filename, O_WRONLY | O_APPEND | O_CREAT, 0644);
                if (keylog_file_fd >= 0 && _lseek(keylog_file_fd, 0, SEEK_END) == 0) {
                        /* file is opened successfully and there is no data (pos == 0) */
                        _write(keylog_file_fd, FIRSTLINE, FIRSTLINE_LEN);
                }
+#else
+               keylog_file_fd = open(filename, O_WRONLY | O_APPEND | O_CREAT, 0644);
+               if (keylog_file_fd >= 0 && lseek(keylog_file_fd, 0, SEEK_END) == 0) {
+                       /* file is opened successfully and there is no data (pos == 0) */
+                       write(keylog_file_fd, FIRSTLINE, FIRSTLINE_LEN);
+               }
+#endif
        }
 }
 
-void keylog_callback(const SSL *ssl, const char *line) {
+void keylog_callback(const SSL *, const char *line) {
        init_keylog_file();
        if (keylog_file_fd >= 0) {
+#ifdef _WIN32
                _write(keylog_file_fd, line, static_cast<unsigned int>(strlen(line)));
                _write(keylog_file_fd, "\n", 1);
+#else
+               write(keylog_file_fd, line, static_cast<unsigned int>(strlen(line)));
+               write(keylog_file_fd, "\n", 1);
+#endif
        }
 }
 
@@ -352,7 +365,7 @@ DtlsTransport::DtlsTransport(shared_ptr<IceTransport> lower, shared_ptr<Certific
 		if (!mCtx)
 			throw std::runtime_error("Failed to create SSL context");
 
-               SSL_CTX_set_keylog_callback(mCtx, keylog_callback);
+                SSL_CTX_set_keylog_callback(mCtx, keylog_callback);
 		openssl::check(SSL_CTX_set_cipher_list(mCtx, "ALL:!LOW:!EXP:!RC4:!MD5:@STRENGTH"),
 		               "Failed to set SSL priorities");
 
