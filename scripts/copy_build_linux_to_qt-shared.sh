@@ -1,5 +1,5 @@
 #/usr/bin/env bash
-PS_QT=/mnt/c/ps
+PS_QT="${PS_QT:-/mnt/c/ps}"
 mkdir -p ${PS_QT}/qt-shared/libs/libdatachannel/build/linux/release
 cp ../../libdatachannel_build_linux_relsym_with_static_openssl/libdatachannel.so.0.11.4 ${PS_QT}/qt-shared/libs/libdatachannel/build/linux/release/
 rm -f ${PS_QT}/qt-shared/libs/libdatachannel/build/linux/release/libdatachannel.so
