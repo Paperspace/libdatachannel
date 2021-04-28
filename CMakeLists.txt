@@ -356,7 +356,7 @@ if(NOT NO_TESTS)
 		CXX_STANDARD 17)
 	set_target_properties(datachannel-tests PROPERTIES OUTPUT_NAME tests)
 	target_include_directories(datachannel-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
-	target_link_libraries(datachannel-tests datachannel)
+	target_link_libraries(datachannel-tests datachannel-static)
 
 	# Benchmark
 	if(CMAKE_SYSTEM_NAME STREQUAL "WindowsStore")
