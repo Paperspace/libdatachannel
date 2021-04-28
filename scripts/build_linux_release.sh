@@ -4,7 +4,12 @@ set -e
 # in libdatachannel/scripts directory
 
 
+
+
 cd ..
-OPENSSL_ROOT_DIR=/home/paperspace/projects/PS_OPENSSL/release/linux111u18/ cmake -DUSE_GNUTLS=0 -DUSE_NICE=0 -DOPENSSL_USE_STATIC_LIBS=TRUE -DCMAKE_BUILD_TYPE=RelWithDebInfo
+
+OPENSSL_ROOT_DIR=/home/paperspace/projects/PS_OPENSSL/release/linux111u18/ cmake -B ../libdatachannel_build_linux_relsym_with_static_openssl -DUSE_GNUTLS=0 -DUSE_NICE=0 -DOPENSSL_USE_STATIC_LIBS=TRUE -DCMAKE_BUILD_TYPE=RelWithDebInfo
+
+cd ../libdatachannel_build_linux_relsym_with_static_openssl
 make
 
