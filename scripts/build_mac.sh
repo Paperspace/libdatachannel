@@ -5,17 +5,22 @@ set -e
 
 cd ../../libdatachannel
 
-cmake -B ../libdatachannel_build_mac_static_openssl -DUSE_GNUTLS=0 -DUSE_NICE=0 -G Xcode -DOPENSSL_USE_STATIC_LIBS=TRUE -DOPENSSL_ROOT_DIR=/usr/local/Cellar/openssl@1.1/1.1.1h/
+cmake -B ../libdatachannel_build_mac_debug_static_openssl_debug -DUSE_GNUTLS=0 -DUSE_NICE=0 -DOPENSSL_USE_STATIC_LIBS=TRUE -DOPENSSL_ROOT_DIR=~/github/PS_OPENSSL/debug/mac111 -DCMAKE_BUILD_TYPE=Debug
 
-cd ../libdatachannel_build_mac_static_openssl
+cd ../libdatachannel_build_mac_debug_static_openssl_debug
 
-# requires xcode 11.7
+make
+./tests
 
-xcodebuild -scheme ALL_BUILD -configuration Debug
-./Debug/tests
+cd ../libdatachannel/scripts
 
-xcodebuild -scheme ALL_BUILD -configuration RelWithDebInfo
-./RelWithDebInfo/tests
+cd ../../libdatachannel
+
+cmake -B ../libdatachannel_build_mac_static_openssl -DUSE_GNUTLS=0 -DUSE_NICE=0 -DOPENSSL_USE_STATIC_LIBS=TRUE -DOPENSSL_ROOT_DIR=~/github/PS_OPENSSL/release/mac111 -DCMAKE_BUILD_TYPE=RelWithDebInfo
+
+cd ../libdatachannel_build_mac_static_openssl/
+make
+./tests
 
 cd ../libdatachannel/scripts
 
