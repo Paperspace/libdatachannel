@@ -29,7 +29,7 @@ using std::weak_ptr;
 namespace rtc {
 
 VerifiedTlsTransport::VerifiedTlsTransport(shared_ptr<TcpTransport> lower, string host,
-                                           state_callback callback)
+                                           state_callback callback, string sslCertFile, string sslCertDir)
     : TlsTransport(std::move(lower), std::move(host), std::move(callback)) {
 
 #if USE_GNUTLS
@@ -37,6 +37,11 @@ VerifiedTlsTransport::VerifiedTlsTransport(shared_ptr<TcpTransport> lower, strin
 	gnutls_session_set_verify_cert(mSession, mHost.c_str(), 0);
 #else
 	PLOG_DEBUG << "Setting up TLS certificate verification";
+	if (sslCertFile.size() || sslCertDir.size()) {
+		const char *CAfile = sslCertFile.size() ? sslCertFile.c_str() : NULL;
+		const char *CApath = sslCertDir.size() ? sslCertDir.c_str() : NULL;
+		SSL_CTX_load_verify_locations(mCtx, CAfile, CApath);
+	}
 	SSL_set_verify(mSsl, SSL_VERIFY_PEER, NULL);
 	SSL_set_verify_depth(mSsl, 4);
 #endif

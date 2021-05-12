@@ -51,7 +51,9 @@ public:
 	struct Configuration {
 		bool disableTlsVerification = false; // if true, don't verify the TLS certificate
 		std::vector<string> protocols;
-               std::vector<string> headers;
+		std::vector<string> headers;
+		string sslCertFile;
+		string sslCertDir;
 	};
 
 	WebSocket(std::optional<Configuration> config = nullopt);

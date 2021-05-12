@@ -256,13 +256,13 @@ shared_ptr<TlsTransport> WebSocket::initTlsTransport() {
 		if (!mConfig.disableTlsVerification) {
 			PLOG_WARNING << "TLS certificate verification with root CA is not supported on Windows";
 		}
-		transport = std::make_shared<TlsTransport>(lower, mHostname, stateChangeCallback);
+		transport = std::make_shared<TlsTransport>(lower, mHostname, stateChangeCallback, mConfig.sslCertFile, mConfig.sslCertDir);
 #else
 		if (mConfig.disableTlsVerification)
 			transport = std::make_shared<TlsTransport>(lower, mHostname, stateChangeCallback);
 		else
 			transport =
-			    std::make_shared<VerifiedTlsTransport>(lower, mHostname, stateChangeCallback);
+			    std::make_shared<VerifiedTlsTransport>(lower, mHostname, stateChangeCallback, mConfig.sslCertFile, mConfig.sslCertDir);
 #endif
 
 		std::atomic_store(&mTlsTransport, transport);
@@ -296,7 +296,7 @@ shared_ptr<WsTransport> WebSocket::initWsTransport() {
 		wsConfig.host = mHost;
 		wsConfig.path = mPath;
 		wsConfig.protocols = mConfig.protocols;
-               wsConfig.headers = mConfig.headers;
+		wsConfig.headers = mConfig.headers;
 
 		auto transport = std::make_shared<WsTransport>(
 		    lower, wsConfig, weak_bind(&WebSocket::incoming, this, _1),

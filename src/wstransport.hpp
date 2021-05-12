@@ -35,7 +35,7 @@ public:
 		string host;
 		string path = "/";
 		std::vector<string> protocols;
-               std::vector<string> headers;
+		std::vector<string> headers;
 	};
 
 	WsTransport(std::shared_ptr<Transport> lower, Configuration config,
