@@ -165,13 +165,21 @@ bool WsTransport::sendHttpRequest() {
 	auto k = reinterpret_cast<uint8_t *>(key.data());
 	std::generate(k, k + key.size(), [&]() { return uint8_t(generator()); });
 
-	string appendHeader = "";
+	string appendHeaders = "";
 	if (mConfig.protocols.size() > 0) {
-		appendHeader +=
+		appendHeaders +=
 		    "Sec-WebSocket-Protocol: " +
 		    std::accumulate(mConfig.protocols.begin(), mConfig.protocols.end(), string(),
 		                    [](const string &a, const string &b) -> string {
 			                    return a + (a.length() > 0 ? "," : "") + b;
+		                    }) +
+		    "\r\n";
+	}
+	if (mConfig.headers.size() > 0) {
+		appendHeaders +=
+		    std::accumulate(mConfig.headers.begin(), mConfig.headers.end(), string(),
+		                    [](const string &a, const string &b) -> string {
+			                    return a + (a.length() > 0 ? "\r\n" : "") + b;
 		                    }) +
 		    "\r\n";
 	}
@@ -185,7 +193,7 @@ bool WsTransport::sendHttpRequest() {
 	                       "Upgrade: websocket\r\n"
 	                       "Sec-WebSocket-Version: 13\r\n"
 	                       "Sec-WebSocket-Key: " +
-	                       to_base64(key) + "\r\n" + std::move(appendHeader) + "\r\n";
+	                       to_base64(key) + "\r\n" + std::move(appendHeaders) + "\r\n";
 
 	auto data = reinterpret_cast<const byte *>(request.data());
 	auto size = request.size();

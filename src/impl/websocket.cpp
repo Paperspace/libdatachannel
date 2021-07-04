@@ -284,6 +284,7 @@ shared_ptr<WsTransport> WebSocket::initWsTransport() {
 		wsConfig.host = mHost;
 		wsConfig.path = mPath;
 		wsConfig.protocols = config.protocols;
+		wsConfig.headers = config.headers;
 
 		auto transport = std::make_shared<WsTransport>(
 		    lower, wsConfig, weak_bind(&WebSocket::incoming, this, _1),
